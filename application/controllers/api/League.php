@@ -27,6 +27,30 @@ class League extends CI_Controller {
       return urldecode(json_encode($this->getInfo($flag, $content, $extra)));
     }
     /**
+     * 添加注册码(应该是管理员的API)
+     */
+    public function addinvitecode() {
+      $res = $this->league->addinvitecode();
+      if ($res['flag'] === -1) {
+        echo $this->myecho(-6, '未登录', '');
+      } else if ($res['flag'] === -1) {
+        echo $this->myecho(-18, '生成邀请码失败', '');
+      } else {
+        echo $this->myecho(100, '生成邀请码成功', '');
+      }
+    }
+    /**
+     * 获取所有社团的注册码(应该是管理员的API)
+     */
+    public function getallinvitecode() {
+      $res = $this->league->getallinvitecode();
+      if ($res['flag'] === -1) {
+        echo $this->myecho(-6, '未登录', '');
+      } else {
+        echo $this->myecho(100, '获取邀请码成功', $res['data']);
+      }
+    }
+    /**
      * 社团注册
      */
     public function signup() {

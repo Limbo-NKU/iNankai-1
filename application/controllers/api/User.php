@@ -69,7 +69,7 @@ class User extends CI_Controller {
       }
     }
     /**
-     * 登录
+     * 登录(社团也可用)
      * @param account 登录账号(可以是邮箱或者用户名)
      * @param password 密码
      * @return -1缺少参数 -4账号不存在 -5密码错误 100登录成功
@@ -93,7 +93,7 @@ class User extends CI_Controller {
       }
     }
     /**
-     * 登出
+     * 登出(社团也可用)
      */
     public function signout() {
       // 可能还需要设置用户状态
@@ -105,7 +105,7 @@ class User extends CI_Controller {
       }
     }
     /**
-     * 获取用户信息
+     * 获取用户信息(社团也可用)
      */
     public function userinfo() {
       $res = $this->user->userinfo();

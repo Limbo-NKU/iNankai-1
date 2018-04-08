@@ -41,7 +41,6 @@ class User_model extends CI_Model {
         // 已经存在该帐号
         return array('flag' => -1);
       }
-      // 为用户生成id
       // 随机生成长度为4的盐，并将密码进行sha256哈希
       $salt = strval(rand(pow(10, 3), pow(10, 4) - 1));
       $password = hash('sha256', $password.$salt);
@@ -59,9 +58,7 @@ class User_model extends CI_Model {
       if ($res->num_rows() == 0) {
         return array('flag' => -2);
       }
-      foreach ($res->result() as $row) {
-        $uid = $row->user_id;
-      }
+      $uid = $res->row()->user_id;
       $sql = 'insert into login_info(user_id, user_name, user_password, user_salt, user_email, user_authority) values('.$this->db->escape($uid).','.$this->db->escape($username).','.$this->db->escape($password).','.$this->db->escape($salt).','.$this->db->escape($email).','.$this->db->escape(0).')';
       $res = $this->db->query($sql);
       if ($this->db->affected_rows() > 0) {
@@ -73,7 +70,7 @@ class User_model extends CI_Model {
       }
     }
     /**
-     * 用户登录
+     * 用户登录(社团也可调用该方法)
      * @param account 用户登录帐号(邮箱或者username)
      * @param password 用户登录密码
      * @return -1: 帐号不存在; -2: 密码错误; 1: 登录成功
@@ -88,12 +85,11 @@ class User_model extends CI_Model {
       }
       // 获取用户账号信息，并检查密码是否正确
       $type = 0; // 账号类型，0表示用户，1表示社团
-      foreach ($res->result() as $row) {
-        $correct_password = $row->user_password;
-        $salt = $row->user_salt;
-        $uid = $row->user_id;
-        $type = $row->user_authority;
-      }
+      $row = $res->row();
+      $correct_password = $row->user_password;
+      $salt = $row->user_salt;
+      $uid = $row->user_id;
+      $type = $row->user_authority;
       $temp_password = hash('sha256', $password.$salt);
       if ($temp_password !== $correct_password) {
         // 密码错误
@@ -128,33 +124,13 @@ class User_model extends CI_Model {
       if ($this->session->has_userdata('uid')) {
         $uid = $this->session->uid;
         $type = $this->session->type;
-        if ($type === 0) $sql = 'select * from user_info where user_id = '.$this->db->escape(intval($uid));
-        else $sql = 'select * from club_user_info where club_user_id = '.$this->db->escape(intval($uid));
+        if ($type === 0) $sql = 'select user_portrait,user_nickname,user_signup_time,user_name from user_info where user_id = '.$this->db->escape(intval($uid));
+        else $sql = 'select club_portrait,club_email,club_contact,club_sub_count,club_user_name,club_signup_time,club_introduction from club_user_info where club_user_id = '.$this->db->escape(intval($uid));
         $res = $this->db->query($sql);
         if ($res->num_rows() === 0) {
           return array('flag' => -2);
         }
-        foreach ($res->result() as $row) {
-          if ($type === 0) {
-            $data = array(
-              'portrait' => $row->user_portrait,
-              'nickname' => $row->user_nickname,
-              'signup_time' => $row->user_signup_time,
-              'name' => $row->user_name
-            );
-          } else {
-            $data = array(
-              'portrait' => $row->user_portrait,
-              'email' => $row->club_email,
-              'contact' => $row->club_contact,
-              'sub_count' => $row->club_sub_count,
-              'name' => $row->club_user_name,
-              'signup_time' => $row->user_signup_time,
-              'introduction' => $row->club_introduction
-            );
-          }
-        }
-        return array('flag' => 1, 'data' => $data);
+        return array('flag' => 1, 'data' => $res->result_array());
       } else {
         return array('flag' => -1);
       }
@@ -271,10 +247,9 @@ class User_model extends CI_Model {
       if ($res->num_rows() === 0) {
         return array('flag' => -2);
       }
-      foreach ($res->result() as $row) {
-        $correct_password = $row->user_password;
-        $salt = $row->user_salt;
-      }
+      $row = $res->row();
+      $correct_password = $row->user_password;
+      $salt = $row->user_salt;
       $temp_pass = hash('sha256', $old_pass.$salt);
       if ($temp_pass !== $correct_password) {
         return array('flag' => -3);
