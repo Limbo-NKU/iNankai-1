@@ -89,7 +89,7 @@ class User extends CI_Controller {
       } else if ($res['flag'] === -2) {
         echo $this->myecho(-5, '密码错误', '');
       } else {
-        echo $this->myecho(100, '登录成功', '');
+        echo $this->myecho(100, '登录成功', $res['account_type']); // type表示账号类型，0表示普通用户，1表示社团用户，2表示管理员
       }
     }
     /**
