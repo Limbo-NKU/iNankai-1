@@ -41,19 +41,25 @@ class User_model extends CI_Model {
         // 已经存在该帐号
         return array('flag' => -1);
       }
-      // 为用户生成id
-      $uid = md5($email);
       // 随机生成长度为4的盐，并将密码进行sha256哈希
       $salt = strval(rand(pow(10, 3), pow(10, 4) - 1));
       $password = hash('sha256', $password.$salt);
       // 将数据存入数据存入数据库中
-      $sql = 'insert into login_info values('.$this->db->escape($uid).','.$this->db->escape($username).','
-        .$this->db->escape($password).','.$this->db->escape(date('Y-m-d H:i:s', time()))
-        .','.$this->db->escape($salt).','.$this->db->escape($email).','.$this->db->escape(0).','.$this->db->escape(0).')';
+      $headicon = 'https://avatars2.githubusercontent.com/u/9383171?s=64&v=4';
+      $sql = 'insert into user_info(user_name, user_last_signin, user_authority, user_status, user_portrait, user_nickname, user_signup_time)'.' values('.$this->db->escape($username).','.$this->db->escape(date('Y-m-d H:i:s', time())).','.$this->db->escape(0).','.$this->db->escape(0).','.$this->db->escape($headicon).','.$this->db->escape($username).','.$this->db->escape(date('Y-m-d H:i:s', time())).');';
       $res = $this->db->query($sql);
-      $headicon = '/hehe.jpg';
-      $sql = 'insert into user_info values('.$this->db->escape($uid).','.$this->db->escape($username).','
-      .$this->db->escape($username).','.$this->db->escape($headicon).','.$this->db->escape(date('Y-m-d H:i:s', time())).')';
+      if ($this->db->affected_rows() === 0) {
+        return array('flag' => -2);
+      }
+      // 根据username查找uid
+      $uid = 0;
+      $sql = 'select * from user_info where user_name = '.$this->db->escape($username);
+      $res = $this->db->query($sql);
+      if ($res->num_rows() == 0) {
+        return array('flag' => -2);
+      }
+      $uid = $res->row()->user_id;
+      $sql = 'insert into login_info(user_id, user_name, user_password, user_salt, user_email, user_authority) values('.$this->db->escape($uid).','.$this->db->escape($username).','.$this->db->escape($password).','.$this->db->escape($salt).','.$this->db->escape($email).','.$this->db->escape(0).')';
       $res = $this->db->query($sql);
       if ($this->db->affected_rows() > 0) {
         // 插入成功
@@ -64,7 +70,7 @@ class User_model extends CI_Model {
       }
     }
     /**
-     * 用户登录
+     * 用户登录(社团也可调用该方法)
      * @param account 用户登录帐号(邮箱或者username)
      * @param password 用户登录密码
      * @return -1: 帐号不存在; -2: 密码错误; 1: 登录成功
@@ -78,11 +84,12 @@ class User_model extends CI_Model {
         return array('flag' => -1);
       }
       // 获取用户账号信息，并检查密码是否正确
-      foreach ($res->result() as $row) {
-        $correct_password = $row->user_password;
-        $salt = $row->user_salt;
-        $uid = $row->user_id;
-      }
+      $type = 0; // 账号类型，0表示用户，1表示社团
+      $row = $res->row();
+      $correct_password = $row->user_password;
+      $salt = $row->user_salt;
+      $uid = $row->user_id;
+      $type = $row->user_authority;
       $temp_password = hash('sha256', $password.$salt);
       if ($temp_password !== $correct_password) {
         // 密码错误
@@ -90,7 +97,10 @@ class User_model extends CI_Model {
       }
       // 设置session
       $this->session->set_userdata('uid', $uid);
-      return array('flag' => 1);
+      if ($type === '0') $this->session->set_userdata('type', 0);
+      else if ($type === '1') $this->session->set_userdata('type', 1);
+      else if ($type === '2') $this->session->set_userdata('type', 2);
+      return array('flag' => 1, 'account_type' => $type);
     }
     /**
      * 用户登出
@@ -100,31 +110,27 @@ class User_model extends CI_Model {
       //  目前比较粗糙，可能需要修改数据库中的用户状态信息
       if ($this->session->has_userdata('uid')) {
         $this->session->unset_userdata('uid');
+        $this->session->unset_userdata('type');
         return array('flag' => 1);
       } else {
         return array('flag' => -1);
       }
     }
     /**
-     * 获取用户信息
+     * 获取用户信息(社团也可调用该方法)
      * @return -1: 尚未登录；-2: 信息获取失败； 1：信息获取成功
      */
     public function userinfo() {
       if ($this->session->has_userdata('uid')) {
         $uid = $this->session->uid;
-        $sql = 'select * from user_info where user_id = '.$this->db->escape(intval($uid));
+        $type = $this->session->type;
+        if ($type === 0) $sql = 'select user_portrait,user_nickname,user_signup_time,user_name from user_info where user_id = '.$this->db->escape(intval($uid));
+        else $sql = 'select club_portrait,club_email,club_contact,club_sub_count,club_user_name,club_signup_time,club_introduction from club_user_info where club_user_id = '.$this->db->escape(intval($uid));
         $res = $this->db->query($sql);
         if ($res->num_rows() === 0) {
           return array('flag' => -2);
         }
-        foreach ($res->result() as $row) {
-          $data = array(
-            'portrait' => $row->user_portrait,
-            'name' => $row->user_nickname,
-            'signup_time' =>$row->user_signup_time
-          );
-        }
-        return array('flag' => 1, 'data' => $data);
+        return array('flag' => 1, 'data' => $res->result_array());
       } else {
         return array('flag' => -1);
       }
@@ -136,7 +142,7 @@ class User_model extends CI_Model {
      * @return -1: 未登录; -2: 修改失败; 1: 修改成功
      */
     public function modifyinfo($new_nick='', $new_potrait='') {
-      if (!$this->session->has_userdata('uid')) {
+      if (!$this->session->has_userdata('uid') || $this->session->type !== 0) {
         return array('flag' => -1);
       }
       $uid = $this->session->uid;
@@ -151,17 +157,17 @@ class User_model extends CI_Model {
       }
     }
     /**
-     * 用户添加关注社团
+     * 用户添加关注社团(untested)
      * @param lid 社团id
      * @return -1: 用户未登录; -2: 不存在该社团; -3: 用户已经关注社团; -4: 关注失败; 1: 关注成功
      */
     public function addattention($lid='') {
-      if (!$this->session->has_userdata('uid')) {
+      if (!$this->session->has_userdata('uid') || $this->session->type !== 0) {
         return array('flag' => -1);
       }
       $uid = $this->session->uid;
       // 检查是否存在该社团
-      $sql = 'select * from club_user_info where user_id = '.$this->db->escape($lid);
+      $sql = 'select * from club_user_info where club_user_id = '.$this->db->escape($lid);
       $res = $this->db->query($sql);
       if ($res->num_rows() === 0) {
         return array('flag' => -2);
@@ -188,7 +194,7 @@ class User_model extends CI_Model {
       return array('flag' => 1);
     }
     /**
-     * 用户取消关注社团
+     * 用户取消关注社团(untested)
      * @param lid 社团id
      * @return -1: 用户未登录; -2: 不存在该社团; -3: 用户没有关注该社团; -4: 取消失败; 1: 取消关注成功
      */
@@ -241,10 +247,9 @@ class User_model extends CI_Model {
       if ($res->num_rows() === 0) {
         return array('flag' => -2);
       }
-      foreach ($res->result() as $row) {
-        $correct_password = $row->user_password;
-        $salt = $row->user_salt;
-      }
+      $row = $res->row();
+      $correct_password = $row->user_password;
+      $salt = $row->user_salt;
       $temp_pass = hash('sha256', $old_pass.$salt);
       if ($temp_pass !== $correct_password) {
         return array('flag' => -3);

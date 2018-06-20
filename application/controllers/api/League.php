@@ -27,6 +27,30 @@ class League extends CI_Controller {
       return urldecode(json_encode($this->getInfo($flag, $content, $extra)));
     }
     /**
+     * 添加注册码(应该是管理员的API)
+     */
+    public function addinvitecode() {
+      $res = $this->league->addinvitecode();
+      if ($res['flag'] === -1) {
+        echo $this->myecho(-6, '未登录', '');
+      } else if ($res['flag'] === -1) {
+        echo $this->myecho(-18, '生成邀请码失败', '');
+      } else {
+        echo $this->myecho(100, '生成邀请码成功', '');
+      }
+    }
+    /**
+     * 获取所有社团的注册码(应该是管理员的API)
+     */
+    public function getallinvitecode() {
+      $res = $this->league->getallinvitecode();
+      if ($res['flag'] === -1) {
+        echo $this->myecho(-6, '未登录', '');
+      } else {
+        echo $this->myecho(100, '获取邀请码成功', $res['data']);
+      }
+    }
+    /**
      * 社团注册
      */
     public function signup() {
@@ -84,6 +108,18 @@ class League extends CI_Controller {
         echo $this->myecho(-8, '信息修改失败', '');
       } else {
         echo $this->myecho(100, '信息修改成功', '');
+      }
+    }
+    /**
+     * 社团获取关注数和点赞数
+     */
+    public function getfocusnum() {
+      $res = $this->league->getfocusnum();
+      if ($res['flag'] === -1) {
+        echo $this->myecho(-6, "账号未登录", "");
+        return;
+      } else if ($res['flag'] === 1) {
+        echo $this->myecho(100, "", $res['data']);
       }
     }
   }
